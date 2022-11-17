@@ -19,10 +19,11 @@
 /* Includes ------------------------------------------------------------------*/
 
 #include "main.h"
-
+#include <stdio.h>
+#include <math.h>
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "lcd-i2c.h"
+#include "i2c_lcd.h"
 #include "BME280_STM32.h"
 /* USER CODE END Includes */
 
@@ -55,12 +56,49 @@ static void MX_GPIO_Init(void);
 static void MX_ADC1_Init(void);
 static void MX_I2C1_Init(void);
 /* USER CODE BEGIN PFP */
-
+void Print_LCD();
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 float Temperature, Pressure, Humidity;
+double SoilMoisture;
+char text[6];
+
+uint8_t droplet[8] = {
+    0b00100,
+    0b00100,
+    0b01010,
+    0b01010,
+    0b11001,
+    0b11101,
+    0b11111,
+    0b01110
+    };
+
+uint8_t thermometer[8] = {
+    0b00100,
+    0b01010,
+    0b01010,
+    0b01010,
+    0b01010,
+    0b11101,
+    0b11111,
+    0b01110
+    };
+
+uint8_t wifi[8] = {
+    0b01110,
+    0b10001,
+    0b00100,
+    0b01110,
+    0b00000,
+    0b00100,
+    0b00000,
+    0b00000
+    };
+
+unsigned short moisture_water={1050}, moisture_air={2900};
 
 /* USER CODE END 0 */
 
@@ -97,17 +135,25 @@ int main(void)
   /* USER CODE BEGIN 2 */
   BME280_Config(OSRS_2, OSRS_16, OSRS_1, MODE_NORMAL, T_SB_0p5, IIR_16);
   lcd_init();
+  lcd_clear();
+  lcd_create_char(0,thermometer);
+  lcd_create_char(1,droplet);
+  lcd_create_char(2,wifi);
+  lcd_home();
   /* USER CODE END 2 */
-
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
     /* USER CODE END WHILE */
 	  BME280_Measure();
-	  lcd_send_string("Temp:");
-	  lcd_send_string("Temp:");
-	  HAL_Delay (500);
+	  HAL_ADC_Start(&hadc1);
+	  if(HAL_ADC_PollForConversion(&hadc1,12)==HAL_OK){
+		  //SoilMoisture = HAL_ADC_GetValue(&hadc1);
+		  SoilMoisture=((moisture_air-HAL_ADC_GetValue(&hadc1)) * 100.0 / (moisture_air-moisture_water));
+	  }
+	  HAL_ADC_Stop(&hadc1);
+	  Print_LCD();
     /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */
@@ -278,6 +324,34 @@ void Error_Handler(void)
   }
   /* USER CODE END Error_Handler_Debug */
 }
+
+void Print_LCD(){
+	lcd_set_cursor(0, 0);
+	lcd_send_data(1);
+	sprintf(text,"%.2f",SoilMoisture);
+	lcd_send_string(text);
+	lcd_send_string("%");
+	lcd_set_cursor(0, 1);
+	lcd_send_data(0);
+	sprintf(text,"%.2f",Temperature);
+	lcd_send_string(text);
+	lcd_send_data(0b11011111);
+	lcd_send_string("C");
+	lcd_set_cursor(0, 2);
+	lcd_send_data(1);
+	sprintf(text,"%.2f",Humidity);
+	lcd_send_string(text);
+	lcd_send_string("%");
+	lcd_set_cursor(0, 3);
+	lcd_send_string("Pres:");
+	sprintf(text,"%.2f",Pressure);
+	lcd_send_string(text);
+	lcd_send_string("hPa");
+	HAL_Delay (500);
+	lcd_clear();
+	lcd_home();
+}
+
 
 #ifdef  USE_FULL_ASSERT
 /**

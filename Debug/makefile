@@ -61,7 +61,7 @@ main-build: ece198.elf secondary-outputs
 
 # Tool invocations
 ece198.elf ece198.map: $(OBJS) $(USER_OBJS) C:\Users\super\STM32CubeIDE\workspace_1.10.1\ece198\STM32F401RETX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-gcc -o "ece198.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"C:\Users\super\STM32CubeIDE\workspace_1.10.1\ece198\STM32F401RETX_FLASH.ld" --specs=nosys.specs -Wl,-Map="ece198.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+	arm-none-eabi-gcc -o "ece198.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"C:\Users\super\STM32CubeIDE\workspace_1.10.1\ece198\STM32F401RETX_FLASH.ld" --specs=nosys.specs -Wl,-Map="ece198.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -u _printf_float -u _scanf_float -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 
