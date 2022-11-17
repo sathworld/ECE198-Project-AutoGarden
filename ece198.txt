@@ -1,0 +1,72 @@
+Configuration	ece198
+STM32CubeMX 	6.6.1
+Date	11/16/2022
+MCU	STM32F401RETx
+
+
+
+PERIPHERALS	MODES	FUNCTIONS	PINS
+ADC1	IN10	ADC1_IN10	PC0
+I2C1	I2C	I2C1_SCL	PB8
+I2C1	I2C	I2C1_SDA	PB9
+RCC	Crystal/Ceramic Resonator	RCC_OSC_IN	PH0 - OSC_IN
+RCC	Crystal/Ceramic Resonator	RCC_OSC_OUT	PH1 - OSC_OUT
+SYS	Serial Wire	SYS_JTCK-SWCLK	PA14
+SYS	Serial Wire	SYS_JTMS-SWDIO	PA13
+
+
+
+Pin Nb	PINs	FUNCTIONs	LABELs
+5	PH0 - OSC_IN	RCC_OSC_IN	
+6	PH1 - OSC_OUT	RCC_OSC_OUT	
+8	PC0	GPIO_Analog ADC1_IN10	
+46	PA13	SYS_JTMS-SWDIO	
+49	PA14	SYS_JTCK-SWCLK	
+61	PB8	I2C1_SCL	
+62	PB9	I2C1_SDA	
+PERIPHERALS	MODES	FUNCTIONS	PINS
+ADC1	IN10	ADC1_IN10	PC0
+I2C1	I2C	I2C1_SCL	PB8
+I2C1	I2C	I2C1_SDA	PB9
+RCC	Crystal/Ceramic Resonator	RCC_OSC_IN	PH0 - OSC_IN
+RCC	Crystal/Ceramic Resonator	RCC_OSC_OUT	PH1 - OSC_OUT
+SYS	Serial Wire	SYS_JTCK-SWCLK	PA14
+SYS	Serial Wire	SYS_JTMS-SWDIO	PA13
+
+
+
+Pin Nb	PINs	FUNCTIONs	LABELs
+5	PH0 - OSC_IN	RCC_OSC_IN	
+6	PH1 - OSC_OUT	RCC_OSC_OUT	
+8	PC0	GPIO_Analog ADC1_IN10	
+46	PA13	SYS_JTMS-SWDIO	
+49	PA14	SYS_JTCK-SWCLK	
+61	PB8	I2C1_SCL	
+62	PB9	I2C1_SDA	
+
+
+
+SOFTWARE PROJECT
+
+Project Settings : 
+Project Name : ece198
+Project Folder : C:\Users\super\STM32CubeIDE\workspace_1.10.1\ece198
+Toolchain / IDE : STM32CubeIDE
+Firmware Package Name and Version : STM32Cube FW_F4 V1.27.1
+
+
+Code Generation Settings : 
+STM32Cube MCU packages and embedded software packs : Copy only the necessary library files
+Generate peripheral initialization as a pair of '.c/.h' files per peripheral : No
+Backup previously generated files when re-generating : No
+Delete previously generated files when not re-generated : Yes
+Set all free pins as analog (to optimize the power consumption) : No
+
+
+Toolchains Settings : 
+Compiler Optimizations : 
+
+
+
+
+
