@@ -61,8 +61,6 @@ void Error_Handler(void);
 #define SOIL_MOIST_GPIO_Port GPIOC
 #define BTN_Pin GPIO_PIN_1
 #define BTN_GPIO_Port GPIOB
-#define CS_MicroSD_Pin GPIO_PIN_10
-#define CS_MicroSD_GPIO_Port GPIOB
 #define LED_Pin GPIO_PIN_8
 #define LED_GPIO_Port GPIOA
 /* USER CODE BEGIN Private defines */

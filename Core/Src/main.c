@@ -18,7 +18,7 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-#include "fatfs.h"
+#include "cmsis_os.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -26,12 +26,12 @@
 #include <stdio.h>
 // Library used for math functions and mathematical reductions
 #include <math.h>
-// Library used to interact with the SD card
-#include "fatfs_sd.h"
+
 // Library used for communication with the LCD
 #include "i2c_lcd.h"
 // Library used for the BME280 sensor
 #include "BME280_STM32.h"
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -53,10 +53,13 @@ ADC_HandleTypeDef hadc1;
 
 I2C_HandleTypeDef hi2c1;
 
-SPI_HandleTypeDef hspi1;
-
-UART_HandleTypeDef huart1;
-
+/* Definitions for defaultTask */
+osThreadId_t defaultTaskHandle;
+const osThreadAttr_t defaultTask_attributes = {
+  .name = "defaultTask",
+  .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityNormal,
+};
 /* USER CODE BEGIN PV */
 
 /* USER CODE END PV */
@@ -66,24 +69,14 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_ADC1_Init(void);
 static void MX_I2C1_Init(void);
-static void MX_SPI1_Init(void);
-static void MX_USART1_UART_Init(void);
+void StartDefaultTask(void *argument);
+
 /* USER CODE BEGIN PFP */
 void Print_LCD();
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-FATFS fs;  // file system
-FIL fil; // File
-FILINFO fno;
-FRESULT fresult;  // result
-UINT br, bw;  // File read/write count
-
-/**** capacity related *****/
-FATFS *pfs;
-DWORD fre_clust;
-uint32_t total, free_space;
 
 // Variables for storing the results of the BME280 readings
 float Temperature, Pressure, Humidity;
@@ -173,9 +166,6 @@ int main(void)
   MX_GPIO_Init();
   MX_ADC1_Init();
   MX_I2C1_Init();
-  MX_SPI1_Init();
-  MX_FATFS_Init();
-  MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
   // Initialize the BME280 sensor
   BME280_Config(OSRS_2, OSRS_16, OSRS_1, MODE_NORMAL, T_SB_0p5, IIR_16);
@@ -187,61 +177,50 @@ int main(void)
   lcd_create_char(1,droplet);
   lcd_create_char(2,wifi);
   lcd_home();
-  lcd_clear();
+  Print_LCD();
 
-  //fresult = f_mount(&fs, "/", 1);
-
-	/* Check free space */
-  //f_getfree("", &fre_clust, &pfs);
-  //total = (uint32_t)((pfs->n_fatent - 2) * pfs->csize * 0.5);
-  //free_space = (uint32_t)(fre_clust * pfs->csize * 0.5);
-  /* Open file to write/ create a file if it doesn't exist */
-  //fresult = f_open(&fil, "file1.txt", FA_OPEN_ALWAYS | FA_READ | FA_WRITE);
-  /* Writing text */
-  //f_puts("This data is from the FILE1.txt. And it was written using ...f_puts... ", &fil);
-  /* Close file */
-  //fresult = f_close(&fil);
 
   /* USER CODE END 2 */
 
+  /* Init scheduler */
+  osKernelInitialize();
+
+  /* USER CODE BEGIN RTOS_MUTEX */
+  /* add mutexes, ... */
+  /* USER CODE END RTOS_MUTEX */
+
+  /* USER CODE BEGIN RTOS_SEMAPHORES */
+  /* add semaphores, ... */
+  /* USER CODE END RTOS_SEMAPHORES */
+
+  /* USER CODE BEGIN RTOS_TIMERS */
+  /* start timers, add new ones, ... */
+  /* USER CODE END RTOS_TIMERS */
+
+  /* USER CODE BEGIN RTOS_QUEUES */
+  /* add queues, ... */
+  /* USER CODE END RTOS_QUEUES */
+
+  /* Create the thread(s) */
+  /* creation of defaultTask */
+  defaultTaskHandle = osThreadNew(StartDefaultTask, NULL, &defaultTask_attributes);
+
+  /* USER CODE BEGIN RTOS_THREADS */
+  /* add threads, ... */
+  /* USER CODE END RTOS_THREADS */
+
+  /* USER CODE BEGIN RTOS_EVENTS */
+  /* add events, ... */
+  /* USER CODE END RTOS_EVENTS */
+
+  /* Start scheduler */
+  osKernelStart();
+
+  /* We should never get here as control is now taken by the scheduler */
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  // Update current time
-	  current_time=HAL_GetTick();
-	  // Update the button readings
-	  btn=HAL_GPIO_ReadPin (GPIOB, GPIO_PIN_1);
-	  if((btn != old_btn) && (btn!=0)){
-		  if(state==0){
-			  state=1;
-		  }else{
-			  state=0;
-		  }
-	  }
-	  old_btn=btn;
-	  // Update sensor readings every 500ms if the reading is enabled
-	  if ((current_time-event_sensor>500)&&state){
-
-		  BME280_Measure();
-		  HAL_ADC_Start(&hadc1);
-		  if(HAL_ADC_PollForConversion(&hadc1,12)==HAL_OK){
-			  //SoilMoisture = HAL_ADC_GetValue(&hadc1);
-			  SoilMoisture=((moisture_air-HAL_ADC_GetValue(&hadc1)) * 100.0 / (moisture_air-moisture_water));
-		  }
-		  HAL_ADC_Stop(&hadc1);
-
-		  event_sensor=HAL_GetTick();
-	  }
-
-	  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_8, !state);
-
-	  // Update the display every 1000 ms
-	  if (current_time-event_lcd>1000){
-		  Print_LCD();
-		  event_lcd=HAL_GetTick();
-	  }
-
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -381,77 +360,6 @@ static void MX_I2C1_Init(void)
 }
 
 /**
-  * @brief SPI1 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_SPI1_Init(void)
-{
-
-  /* USER CODE BEGIN SPI1_Init 0 */
-
-  /* USER CODE END SPI1_Init 0 */
-
-  /* USER CODE BEGIN SPI1_Init 1 */
-
-  /* USER CODE END SPI1_Init 1 */
-  /* SPI1 parameter configuration*/
-  hspi1.Instance = SPI1;
-  hspi1.Init.Mode = SPI_MODE_MASTER;
-  hspi1.Init.Direction = SPI_DIRECTION_2LINES;
-  hspi1.Init.DataSize = SPI_DATASIZE_8BIT;
-  hspi1.Init.CLKPolarity = SPI_POLARITY_LOW;
-  hspi1.Init.CLKPhase = SPI_PHASE_1EDGE;
-  hspi1.Init.NSS = SPI_NSS_SOFT;
-  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_2;
-  hspi1.Init.FirstBit = SPI_FIRSTBIT_MSB;
-  hspi1.Init.TIMode = SPI_TIMODE_DISABLE;
-  hspi1.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
-  hspi1.Init.CRCPolynomial = 10;
-  if (HAL_SPI_Init(&hspi1) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN SPI1_Init 2 */
-
-  /* USER CODE END SPI1_Init 2 */
-
-}
-
-/**
-  * @brief USART1 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_USART1_UART_Init(void)
-{
-
-  /* USER CODE BEGIN USART1_Init 0 */
-
-  /* USER CODE END USART1_Init 0 */
-
-  /* USER CODE BEGIN USART1_Init 1 */
-
-  /* USER CODE END USART1_Init 1 */
-  huart1.Instance = USART1;
-  huart1.Init.BaudRate = 115200;
-  huart1.Init.WordLength = UART_WORDLENGTH_8B;
-  huart1.Init.StopBits = UART_STOPBITS_1;
-  huart1.Init.Parity = UART_PARITY_NONE;
-  huart1.Init.Mode = UART_MODE_TX_RX;
-  huart1.Init.HwFlowCtl = UART_HWCONTROL_NONE;
-  huart1.Init.OverSampling = UART_OVERSAMPLING_16;
-  if (HAL_UART_Init(&huart1) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN USART1_Init 2 */
-
-  /* USER CODE END USART1_Init 2 */
-
-}
-
-/**
   * @brief GPIO Initialization Function
   * @param None
   * @retval None
@@ -467,9 +375,6 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOA_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(CS_MicroSD_GPIO_Port, CS_MicroSD_Pin, GPIO_PIN_RESET);
-
-  /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin : BTN_Pin */
@@ -477,13 +382,6 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(BTN_GPIO_Port, &GPIO_InitStruct);
-
-  /*Configure GPIO pin : CS_MicroSD_Pin */
-  GPIO_InitStruct.Pin = CS_MicroSD_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(CS_MicroSD_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pin : LED_Pin */
   GPIO_InitStruct.Pin = LED_Pin;
@@ -522,7 +420,82 @@ void Print_LCD(){
 	lcd_home();
 }
 
+
+
 /* USER CODE END 4 */
+
+/* USER CODE BEGIN Header_StartDefaultTask */
+/**
+  * @brief  Function implementing the defaultTask thread.
+  * @param  argument: Not used
+  * @retval None
+  */
+/* USER CODE END Header_StartDefaultTask */
+void StartDefaultTask(void *argument)
+{
+  /* USER CODE BEGIN 5 */
+  /* Infinite loop */
+  for(;;)
+  {
+	  // Update current time
+	  current_time=HAL_GetTick();
+	  // Update the button readings
+	  btn=HAL_GPIO_ReadPin (GPIOB, GPIO_PIN_1);
+	  if((btn != old_btn) && (btn!=0)){
+		  if(state==0){
+			  state=1;
+		  }else{
+			  state=0;
+		  }
+	  }
+	  old_btn=btn;
+	  // Update sensor readings every 500ms if the reading is enabled
+	  if ((current_time-event_sensor>500)&&state){
+
+		  BME280_Measure();
+		  HAL_ADC_Start(&hadc1);
+		  if(HAL_ADC_PollForConversion(&hadc1,12)==HAL_OK){
+			  //SoilMoisture = HAL_ADC_GetValue(&hadc1);
+			  SoilMoisture=((moisture_air-HAL_ADC_GetValue(&hadc1)) * 100.0 / (moisture_air-moisture_water));
+		  }
+		  HAL_ADC_Stop(&hadc1);
+
+		  event_sensor=HAL_GetTick();
+	  }
+
+	  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_8, !state);
+
+	  // Update the display every 1000 ms
+	  if (current_time-event_lcd>1000){
+		  Print_LCD();
+		  event_lcd=HAL_GetTick();
+	  }
+
+    osDelay(1);
+  }
+  /* USER CODE END 5 */
+}
+
+/**
+  * @brief  Period elapsed callback in non blocking mode
+  * @note   This function is called  when TIM9 interrupt took place, inside
+  * HAL_TIM_IRQHandler(). It makes a direct call to HAL_IncTick() to increment
+  * a global variable "uwTick" used as application time base.
+  * @param  htim : TIM handle
+  * @retval None
+  */
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+  /* USER CODE BEGIN Callback 0 */
+
+  /* USER CODE END Callback 0 */
+  if (htim->Instance == TIM9) {
+    HAL_IncTick();
+  }
+  /* USER CODE BEGIN Callback 1 */
+
+  /* USER CODE END Callback 1 */
+}
 
 /**
   * @brief  This function is executed in case of error occurrence.
