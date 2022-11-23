@@ -71,7 +71,7 @@ void lcd_send_string (char *str)
 
 void lcd_home(){
 	lcd_send_cmd (LCD_RETURNHOME);
-	HAL_Delay(2);
+	//HAL_Delay(2);
 }
 void lcd_no_display(){
 	_displaycontrol &= ~LCD_DISPLAYON;

@@ -22,10 +22,15 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+// Library for formatting strings
 #include <stdio.h>
+// Library used for math functions and mathematical reductions
 #include <math.h>
+// Library used to interact with the SD card
 #include "fatfs_sd.h"
+// Library used for communication with the LCD
 #include "i2c_lcd.h"
+// Library used for the BME280 sensor
 #include "BME280_STM32.h"
 /* USER CODE END Includes */
 
@@ -80,10 +85,19 @@ FATFS *pfs;
 DWORD fre_clust;
 uint32_t total, free_space;
 
+// Variables for storing the results of the BME280 readings
 float Temperature, Pressure, Humidity;
+// Variable for storing soil moisture
 double SoilMoisture;
+// Variable used for text formatting
 char text[6];
 
+long unsigned int event_lcd;
+long unsigned int event_sensor=0;
+long unsigned int event_button=0;
+long unsigned int current_time=0;
+
+// Custom LCD display symbols
 uint8_t droplet[8] = {
     0b00100,
     0b00100,
@@ -117,6 +131,7 @@ uint8_t wifi[8] = {
     0b00000
     };
 
+// Experimentally determined variables used for scaling the soil moisture sensor readings
 unsigned short moisture_water={1050}, moisture_air={2900};
 
 /* USER CODE END 0 */
@@ -155,15 +170,19 @@ int main(void)
   MX_FATFS_Init();
   MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
+  // Initialize the BME280 sensor
   BME280_Config(OSRS_2, OSRS_16, OSRS_1, MODE_NORMAL, T_SB_0p5, IIR_16);
+  // Initialize the LCD display
   lcd_init();
   lcd_clear();
+  // Load custom characters into memory
   lcd_create_char(0,thermometer);
   lcd_create_char(1,droplet);
   lcd_create_char(2,wifi);
   lcd_home();
 
-  fresult = f_mount(&fs, "/", 1);
+
+  //fresult = f_mount(&fs, "/", 1);
 
 	/* Check free space */
   //f_getfree("", &fre_clust, &pfs);
@@ -182,13 +201,21 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  BME280_Measure();
-	  HAL_ADC_Start(&hadc1);
-	  if(HAL_ADC_PollForConversion(&hadc1,12)==HAL_OK){
-		  //SoilMoisture = HAL_ADC_GetValue(&hadc1);
-		  SoilMoisture=((moisture_air-HAL_ADC_GetValue(&hadc1)) * 100.0 / (moisture_air-moisture_water));
+	  // Update current time
+	  current_time=HAL_GetTick();
+	  // Update sensor readings every 500ms
+	  if (current_time-event_sensor>500){
+		  BME280_Measure();
+		  HAL_ADC_Start(&hadc1);
+		  if(HAL_ADC_PollForConversion(&hadc1,12)==HAL_OK){
+			  //SoilMoisture = HAL_ADC_GetValue(&hadc1);
+			  SoilMoisture=((moisture_air-HAL_ADC_GetValue(&hadc1)) * 100.0 / (moisture_air-moisture_water));
+		  }
+		  HAL_ADC_Stop(&hadc1);
+		  event_sensor=HAL_GetTick();
 	  }
-	  HAL_ADC_Stop(&hadc1);
+
+
 	  if(HAL_GPIO_ReadPin (GPIOB, GPIO_PIN_1))
 		{
 			HAL_GPIO_WritePin(GPIOA, GPIO_PIN_8, GPIO_PIN_SET);
@@ -197,7 +224,12 @@ int main(void)
 		{
 			HAL_GPIO_WritePin(GPIOA, GPIO_PIN_8, GPIO_PIN_RESET);
 	  }
-	  Print_LCD();
+	  // Update the display every 1000 ms
+	  if (current_time-event_lcd>1000){
+		  Print_LCD();
+		  event_lcd=HAL_GetTick();
+	  }
+
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -452,6 +484,7 @@ static void MX_GPIO_Init(void)
 
 /* USER CODE BEGIN 4 */
 void Print_LCD(){
+	lcd_clear();
 	lcd_set_cursor(0, 0);
 	lcd_send_data(1);
 	sprintf(text,"%.2f",SoilMoisture);
@@ -473,8 +506,6 @@ void Print_LCD(){
 	sprintf(text,"%4.1f",Pressure/100);
 	lcd_send_string(text);
 	lcd_send_string("hPa");
-	HAL_Delay (500);
-	lcd_clear();
 	lcd_home();
 }
 
