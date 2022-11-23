@@ -92,10 +92,18 @@ double SoilMoisture;
 // Variable used for text formatting
 char text[6];
 
-long unsigned int event_lcd;
+// Variables used to replace HAL_Delay() with HAL_GetTick()
+// Stores the last time the event occurred
+long unsigned int event_lcd=0;
 long unsigned int event_sensor=0;
 long unsigned int event_button=0;
+// Stores current time
 long unsigned int current_time=0;
+
+// Stores the previous button state
+char btn=0;
+char old_btn=0;
+char state=1;
 
 // Custom LCD display symbols
 uint8_t droplet[8] = {
@@ -133,7 +141,6 @@ uint8_t wifi[8] = {
 
 // Experimentally determined variables used for scaling the soil moisture sensor readings
 unsigned short moisture_water={1050}, moisture_air={2900};
-
 /* USER CODE END 0 */
 
 /**
@@ -180,7 +187,7 @@ int main(void)
   lcd_create_char(1,droplet);
   lcd_create_char(2,wifi);
   lcd_home();
-
+  lcd_clear();
 
   //fresult = f_mount(&fs, "/", 1);
 
@@ -203,8 +210,19 @@ int main(void)
   {
 	  // Update current time
 	  current_time=HAL_GetTick();
-	  // Update sensor readings every 500ms
-	  if (current_time-event_sensor>500){
+	  // Update the button readings
+	  btn=HAL_GPIO_ReadPin (GPIOB, GPIO_PIN_1);
+	  if((btn != old_btn) && (btn!=0)){
+		  if(state==0){
+			  state=1;
+		  }else{
+			  state=0;
+		  }
+	  }
+	  old_btn=btn;
+	  // Update sensor readings every 500ms if the reading is enabled
+	  if ((current_time-event_sensor>500)&&state){
+
 		  BME280_Measure();
 		  HAL_ADC_Start(&hadc1);
 		  if(HAL_ADC_PollForConversion(&hadc1,12)==HAL_OK){
@@ -212,18 +230,12 @@ int main(void)
 			  SoilMoisture=((moisture_air-HAL_ADC_GetValue(&hadc1)) * 100.0 / (moisture_air-moisture_water));
 		  }
 		  HAL_ADC_Stop(&hadc1);
+
 		  event_sensor=HAL_GetTick();
 	  }
 
+	  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_8, !state);
 
-	  if(HAL_GPIO_ReadPin (GPIOB, GPIO_PIN_1))
-		{
-			HAL_GPIO_WritePin(GPIOA, GPIO_PIN_8, GPIO_PIN_SET);
-		}
-		else
-		{
-			HAL_GPIO_WritePin(GPIOA, GPIO_PIN_8, GPIO_PIN_RESET);
-	  }
 	  // Update the display every 1000 ms
 	  if (current_time-event_lcd>1000){
 		  Print_LCD();
@@ -486,6 +498,7 @@ static void MX_GPIO_Init(void)
 void Print_LCD(){
 	lcd_clear();
 	lcd_set_cursor(0, 0);
+	lcd_send_string("Rel. soil ");
 	lcd_send_data(1);
 	sprintf(text,"%.2f",SoilMoisture);
 	lcd_send_string(text);
